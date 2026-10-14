@@ -1,0 +1,22 @@
+{
+  "name": "bookleaf-support-api",
+  "version": "1.0.0",
+  "description": "Backend API for BookLeaf Author Support Portal",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "bookleaf-author-support-portal": "file:..",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io": "^4.8.4",
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^14.0.3"
+  }
+}

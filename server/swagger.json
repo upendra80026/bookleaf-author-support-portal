@@ -1,0 +1,199 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "BookLeaf Author Support & Communication Portal API",
+    "version": "1.0.0",
+    "description": "Production REST API for BookLeaf Publishing with AI-powered Auto-Classification, Priority Scoring, Grounded Response Drafting, and Real-Time WebSocket Support."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "example": "priya.sharma@email.com" },
+          "password": { "type": "string", "example": "author123" }
+        }
+      },
+      "CreateTicketRequest": {
+        "type": "object",
+        "required": ["subject", "description"],
+        "properties": {
+          "book_id": { "type": "string", "example": "BK001", "description": "Book ID or 'GENERAL'" },
+          "subject": { "type": "string", "example": "Royalty payout query for Q3" },
+          "description": { "type": "string", "example": "I published my book 4 months ago and have not received any royalty." },
+          "attachment": { "type": "string", "example": "statement.pdf", "nullable": true }
+        }
+      },
+      "PostMessageRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": { "type": "string", "example": "We have checked with our banking team and the transfer is processed." },
+          "is_internal_note": { "type": "boolean", "default": false, "description": "Admins only. Hidden from authors." }
+        }
+      },
+      "UpdateTicketRequest": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["Open", "In Progress", "Resolved", "Closed"] },
+          "category": { "type": "string", "enum": ["Royalty & Payments", "ISBN & Metadata Issues", "Printing & Quality", "Distribution & Availability", "Book Status & Production Updates", "General Inquiry"] },
+          "priority": { "type": "string", "enum": ["Critical", "High", "Medium", "Low"] },
+          "assigned_to": { "type": "string", "example": "ADMIN001" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "summary": "Authenticate author or admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful with JWT token and profile" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Get authenticated user profile",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Current user profile" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/auth/demo-users": {
+      "get": {
+        "summary": "List sample authors and admins for rapid testing",
+        "responses": {
+          "200": { "description": "List of demo accounts" }
+        }
+      }
+    },
+    "/api/books": {
+      "get": {
+        "summary": "Get books (Author gets own; Admin gets all)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List of books with royalty, status, and sales metrics" }
+        }
+      }
+    },
+    "/api/tickets": {
+      "get": {
+        "summary": "Get support tickets with filtering",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "priority", "in": "query", "schema": { "type": "string" } },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "enum": ["newest", "oldest_unresolved", "priority"] } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "List of support tickets" }
+        }
+      },
+      "post": {
+        "summary": "Submit a support query (AI auto-classifies, assigns priority, and drafts response)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateTicketRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Ticket created with AI metadata" }
+        }
+      }
+    },
+    "/api/tickets/{id}": {
+      "get": {
+        "summary": "Get ticket details and message thread",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Ticket details with author context and conversation" }
+        }
+      },
+      "patch": {
+        "summary": "Update ticket status, override AI category/priority, or assign (Admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateTicketRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Ticket updated successfully" }
+        }
+      }
+    },
+    "/api/tickets/{id}/messages": {
+      "post": {
+        "summary": "Send response or post internal note",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PostMessageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Message posted and broadcasted via WebSocket" }
+        }
+      }
+    },
+    "/api/tickets/{id}/regenerate-ai-draft": {
+      "post": {
+        "summary": "Regenerate AI draft response for a ticket (Admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Newly generated draft response" }
+        }
+      }
+    }
+  }
+}
